@@ -8,31 +8,52 @@ Active Insurance showcases how AI agents can work together to provide personaliz
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        Active Insurance Platform                         │
-│                         (Spring Modulith)                               │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐            │
-│  │   SENSE     │      │  ADVOCATE   │      │ GATEKEEPER  │            │
-│  │  (Monitor)  │─────▶│   (Coach)   │─────▶│  (Actuary)  │            │
-│  └─────────────┘      └─────────────┘      └─────────────┘            │
-│        │                    │                    │                     │
-│        │                    │                    │                     │
-│        ▼                    ▼                    ▼                     │
-│  ┌─────────────────────────────────────────────────────────────────┐  │
-│  │                      RabbitMQ Exchanges                          │  │
-│  │  flattened_telemetry → vehicle_events → behavior_context        │  │
-│  └─────────────────────────────────────────────────────────────────┘  │
-│        │                    │                    │                     │
-│        ▼                    ▼                    ▼                     │
-│  ┌───────────┐        ┌───────────┐        ┌───────────┐             │
-│  │ Greenplum │        │  GemFire  │        │  Policy   │             │
-│  │ (History) │        │ (Session) │        │  System   │             │
-│  └───────────┘        └───────────┘        └───────────┘             │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph platform["🏢 Active Insurance Platform (Spring Modulith)"]
+        direction TB
+
+        subgraph agents["AI Agents"]
+            direction LR
+            sense["🔍 SENSE<br/>Telemetry Monitor"]
+            advocate["💬 ADVOCATE<br/>Driver Coach"]
+            gatekeeper["🛡️ GATEKEEPER<br/>Policy Actuary"]
+        end
+
+        sense -->|behavior context| advocate
+        advocate -->|reward requests| gatekeeper
+
+        subgraph messaging["RabbitMQ Exchanges"]
+            direction LR
+            ex1[/"flattened_telemetry"/]
+            ex2[/"vehicle_events"/]
+            ex3[/"behavior_context"/]
+        end
+
+        subgraph datastores["Data Stores"]
+            direction LR
+            gp[("🐘 Greenplum<br/>History & ML")]
+            gf[("⚡ GemFire<br/>Real-time Session")]
+            ps[("📋 Policy<br/>System")]
+        end
+    end
+
+    vehicle["🚗 Vehicle<br/>Telemetry"] --> ex1
+    ex1 --> sense
+    sense --> ex2
+    sense --> ex3
+    ex2 --> gp
+    ex3 --> advocate
+    advocate -.-> gf
+    gatekeeper -.-> ps
+
+    style sense fill:#3498db,stroke:#2980b9,color:#fff
+    style advocate fill:#27ae60,stroke:#1e8449,color:#fff
+    style gatekeeper fill:#e67e22,stroke:#d35400,color:#fff
+    style gp fill:#9b59b6,stroke:#8e44ad,color:#fff
+    style gf fill:#e74c3c,stroke:#c0392b,color:#fff
+    style ps fill:#1abc9c,stroke:#16a085,color:#fff
+    style vehicle fill:#34495e,stroke:#2c3e50,color:#fff
 ```
 
 ## The Agents

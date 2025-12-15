@@ -1,0 +1,47 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4a90d9', 'primaryTextColor': '#fff', 'primaryBorderColor': '#2e6da4', 'lineColor': '#5a5a5a', 'secondaryColor': '#f0f4f8', 'tertiaryColor': '#e8f4e8'}}}%%
+flowchart TB
+    subgraph platform["Active Insurance Platform (Spring Modulith)"]
+        direction TB
+
+        subgraph agents["AI Agents"]
+            direction LR
+            sense["🔍 SENSE<br/>(Monitor)"]
+            advocate["💬 ADVOCATE<br/>(Coach)"]
+            gatekeeper["🛡️ GATEKEEPER<br/>(Actuary)"]
+        end
+
+        sense --> advocate
+        advocate --> gatekeeper
+
+        subgraph messaging["RabbitMQ Exchanges"]
+            direction LR
+            ex1["flattened_telemetry"]
+            ex2["vehicle_events"]
+            ex3["behavior_context"]
+        end
+
+        sense -.-> ex2
+        sense -.-> ex3
+
+        subgraph data["Data Stores"]
+            direction LR
+            gp[("Greenplum<br/>(History/ML)")]
+            gf[("GemFire<br/>(Session)")]
+            ps[("Policy<br/>System")]
+        end
+
+        ex2 --> gp
+        ex3 --> advocate
+        advocate --> gf
+        gatekeeper --> ps
+    end
+
+    vehicle["🚗 Vehicle<br/>Telemetry"] --> ex1
+    ex1 --> sense
+
+    style sense fill:#4a90d9,stroke:#2e6da4,color:#fff
+    style advocate fill:#5cb85c,stroke:#4cae4c,color:#fff
+    style gatekeeper fill:#f0ad4e,stroke:#eea236,color:#fff
+    style gp fill:#8e44ad,stroke:#7d3c98,color:#fff
+    style gf fill:#e74c3c,stroke:#c0392b,color:#fff
+    style ps fill:#3498db,stroke:#2980b9,color:#fff

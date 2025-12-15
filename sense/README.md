@@ -20,21 +20,41 @@ Sense replaces the legacy `imc-telemetry-processor` which only performed simple 
 
 ## Architecture
 
-```
-                          ┌─────────────────────────────────────┐
-                          │            SENSE PROCESSOR          │
-                          │                                     │
-┌─────────────────┐       │  ┌─────────────────────────────┐   │       ┌─────────────────┐
-│ flattened_      │       │  │     TelemetryProcessor      │   │       │ vehicle_events  │
-│ telemetry       │──────▶│  │                             │───│──────▶│ exchange        │
-│ exchange        │       │  │  • Behavior Detection       │   │       │ (→ Greenplum)   │
-│                 │       │  │  • Risk Scoring             │   │       └─────────────────┘
-│ (35 fields)     │       │  │  • Coaching Triggers        │   │
-└─────────────────┘       │  │                             │   │       ┌─────────────────┐
-                          │  └─────────────────────────────┘   │       │ behavior_context│
-                          │                                     │──────▶│ exchange        │
-                          │                                     │       │ (→ Coach Agent) │
-                          └─────────────────────────────────────┘       └─────────────────┘
+```mermaid
+flowchart LR
+    subgraph input["Input"]
+        tel[/"📡 flattened_telemetry<br/>exchange<br/>(35 fields)"/]
+    end
+
+    subgraph processor["🔍 SENSE PROCESSOR"]
+        direction TB
+        detect["Behavior Detection"]
+        risk["Risk Scoring"]
+        coach["Coaching Triggers"]
+        detect --> risk --> coach
+    end
+
+    subgraph output["Dual Output"]
+        direction TB
+        ve[/"🚗 vehicle_events<br/>exchange"/]
+        bc[/"💬 behavior_context<br/>exchange"/]
+    end
+
+    subgraph destinations["Destinations"]
+        direction TB
+        gp[("🐘 Greenplum<br/>ML Pipeline")]
+        ca["🤖 Coach Agent"]
+    end
+
+    tel --> processor
+    processor --> ve
+    processor --> bc
+    ve --> gp
+    bc --> ca
+
+    style processor fill:#3498db,stroke:#2980b9,color:#fff
+    style gp fill:#9b59b6,stroke:#8e44ad,color:#fff
+    style ca fill:#27ae60,stroke:#1e8449,color:#fff
 ```
 
 ## Detected Behaviors
