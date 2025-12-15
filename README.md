@@ -10,40 +10,36 @@ Active Insurance showcases how AI agents can work together to provide personaliz
 
 ```mermaid
 flowchart TB
-    subgraph platform["🏢 Active Insurance Platform (Spring Modulith)"]
-        direction TB
+    vehicle["🚗 Vehicle Telemetry"]
 
-        subgraph agents["AI Agents"]
-            direction LR
-            sense["🔍 SENSE<br/>Telemetry Monitor"]
-            advocate["💬 ADVOCATE<br/>Driver Coach"]
-            gatekeeper["🛡️ GATEKEEPER<br/>Policy Actuary"]
-        end
+    vehicle --> ex1
 
-        sense -->|behavior context| advocate
-        advocate -->|reward requests| gatekeeper
-
-        subgraph messaging["RabbitMQ Exchanges"]
-            direction LR
-            ex1[/"flattened_telemetry"/]
-            ex2[/"vehicle_events"/]
-            ex3[/"behavior_context"/]
-        end
-
-        subgraph datastores["Data Stores"]
-            direction LR
-            gp[("🐘 Greenplum<br/>History & ML")]
-            gf[("⚡ GemFire<br/>Real-time Session")]
-            ps[("📋 Policy<br/>System")]
-        end
+    subgraph exchanges["RabbitMQ Exchanges"]
+        ex1[/"flattened_telemetry"/]
+        ex2[/"vehicle_events"/]
+        ex3[/"behavior_context"/]
     end
 
-    vehicle["🚗 Vehicle<br/>Telemetry"] --> ex1
     ex1 --> sense
+
+    subgraph agents["AI Agents"]
+        sense["🔍 SENSE<br/>Telemetry Monitor"]
+        advocate["💬 ADVOCATE<br/>Driver Coach"]
+        gatekeeper["🛡️ GATEKEEPER<br/>Policy Actuary"]
+    end
+
     sense --> ex2
     sense --> ex3
+    ex3 -->|behavior context| advocate
+    advocate -->|reward requests| gatekeeper
+
+    subgraph datastores["Data Stores"]
+        gp[("🐘 Greenplum<br/>History & ML")]
+        gf[("⚡ GemFire<br/>Real-time Session")]
+        ps[("📋 Policy System")]
+    end
+
     ex2 --> gp
-    ex3 --> advocate
     advocate -.-> gf
     gatekeeper -.-> ps
 
