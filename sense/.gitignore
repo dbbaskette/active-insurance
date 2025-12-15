@@ -54,3 +54,6 @@ application-local.yml
 *.key
 *.pem
 *.crt
+
+# Local configuration with secrets (use vars.yaml.template as reference)
+vars.yaml

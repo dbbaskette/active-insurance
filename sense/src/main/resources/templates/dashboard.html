@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sense - Telemetry Monitor Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #f8fafc;
+        }
+
+        .header h1 span {
+            color: #3b82f6;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ef4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #22c55e;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid #334155;
+        }
+
+        .stat-card.alert {
+            border-color: #ef4444;
+            background: linear-gradient(135deg, #1e293b 0%, #2d1f1f 100%);
+        }
+
+        .stat-card.warning {
+            border-color: #f59e0b;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .stat-value.highlight {
+            color: #3b82f6;
+        }
+
+        .stat-value.danger {
+            color: #ef4444;
+        }
+
+        .stat-value.warning {
+            color: #f59e0b;
+        }
+
+        .stat-unit {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-left: 0.25rem;
+        }
+
+        .panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .panels {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .panel-body {
+            padding: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .event-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .event-item {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid #334155;
+        }
+
+        .event-item.accident {
+            border-left-color: #ef4444;
+            background: linear-gradient(90deg, rgba(239,68,68,0.1) 0%, #0f172a 100%);
+        }
+
+        .event-item.harsh-braking {
+            border-left-color: #f59e0b;
+        }
+
+        .event-item.speeding {
+            border-left-color: #8b5cf6;
+        }
+
+        .event-item.cornering {
+            border-left-color: #06b6d4;
+        }
+
+        .event-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .event-type {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .event-details {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .event-meta {
+            text-align: right;
+        }
+
+        .event-time {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .event-risk {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .risk-high { color: #ef4444; }
+        .risk-medium { color: #f59e0b; }
+        .risk-low { color: #22c55e; }
+
+        .driver-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .driver-item {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .driver-id {
+            font-weight: 600;
+            font-size: 0.875rem;
+            font-family: monospace;
+        }
+
+        .driver-stats {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .behavior-bars {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .behavior-bar {
+            flex: 1;
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .behavior-bar-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+        }
+
+        .behavior-bar-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+
+        .uptime {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><span>Sense</span> Telemetry Monitor</h1>
+        <div class="status-indicator">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="connection-status">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Events/Second</div>
+                <div class="stat-value highlight" id="eps">0<span class="stat-unit">eps</span></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Events</div>
+                <div class="stat-value" id="total-events">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Behaviors Detected</div>
+                <div class="stat-value" id="behaviors-detected">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Active Drivers</div>
+                <div class="stat-value" id="active-drivers">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">AI Classifications</div>
+                <div class="stat-value" id="ai-classifications">0</div>
+            </div>
+            <div class="stat-card alert">
+                <div class="stat-label">Potential Accidents</div>
+                <div class="stat-value danger" id="accidents">0</div>
+            </div>
+        </div>
+
+        <div class="behavior-bars">
+            <div class="behavior-bar">
+                <div class="behavior-bar-label">Harsh Braking</div>
+                <div class="behavior-bar-value warning" id="harsh-braking">0</div>
+            </div>
+            <div class="behavior-bar">
+                <div class="behavior-bar-label">Speeding</div>
+                <div class="behavior-bar-value" style="color: #8b5cf6;" id="speeding">0</div>
+            </div>
+            <div class="behavior-bar">
+                <div class="behavior-bar-label">Aggressive Cornering</div>
+                <div class="behavior-bar-value" style="color: #06b6d4;" id="cornering">0</div>
+            </div>
+            <div class="behavior-bar">
+                <div class="behavior-bar-label">Vehicle Events Emitted</div>
+                <div class="behavior-bar-value" style="color: #22c55e;" id="vehicle-events">0</div>
+            </div>
+        </div>
+
+        <div class="panels" style="margin-top: 1.5rem;">
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Recent Events</span>
+                    <span class="uptime" id="uptime">Uptime: 0s</span>
+                </div>
+                <div class="panel-body">
+                    <div class="event-list" id="event-list">
+                        <div class="empty-state">Waiting for events...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Top Risk Drivers</span>
+                </div>
+                <div class="panel-body">
+                    <div class="driver-list" id="driver-list">
+                        <div class="empty-state">No driver data yet...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 10;
+
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/dashboard`);
+
+            ws.onopen = () => {
+                console.log('Connected to dashboard WebSocket');
+                document.getElementById('status-dot').classList.add('connected');
+                document.getElementById('connection-status').textContent = 'Connected';
+                reconnectAttempts = 0;
+            };
+
+            ws.onclose = () => {
+                document.getElementById('status-dot').classList.remove('connected');
+                document.getElementById('connection-status').textContent = 'Disconnected';
+
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    setTimeout(connect, 2000);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateDashboard(data);
+            };
+        }
+
+        function updateDashboard(stats) {
+            // Update main stats
+            document.getElementById('eps').innerHTML =
+                `${stats.eventsPerSecond.toFixed(1)}<span class="stat-unit">eps</span>`;
+            document.getElementById('total-events').textContent = formatNumber(stats.eventsReceived);
+            document.getElementById('behaviors-detected').textContent = formatNumber(stats.behaviorsDetected);
+            document.getElementById('active-drivers').textContent = stats.activeDrivers;
+            document.getElementById('ai-classifications').textContent = formatNumber(stats.intentsClassified);
+            document.getElementById('accidents').textContent = stats.potentialAccidents;
+
+            // Update behavior bars
+            document.getElementById('harsh-braking').textContent = formatNumber(stats.harshBrakingEvents);
+            document.getElementById('speeding').textContent = formatNumber(stats.speedingEvents);
+            document.getElementById('cornering').textContent = formatNumber(stats.aggressiveCorneringEvents);
+            document.getElementById('vehicle-events').textContent = formatNumber(stats.vehicleEventsEmitted);
+
+            // Update uptime
+            document.getElementById('uptime').textContent = `Uptime: ${formatUptime(stats.uptimeMs)}`;
+
+            // Update recent events
+            updateRecentEvents(stats.recentEvents);
+
+            // Update top risk drivers
+            updateTopDrivers(stats.topRiskDrivers);
+        }
+
+        function updateRecentEvents(events) {
+            const container = document.getElementById('event-list');
+
+            if (!events || events.length === 0) {
+                container.innerHTML = '<div class="empty-state">Waiting for events...</div>';
+                return;
+            }
+
+            container.innerHTML = events.slice(0, 20).map(event => {
+                const eventClass = getEventClass(event.behaviorType);
+                const riskClass = getRiskClass(event.riskScore);
+                const time = new Date(event.timestamp).toLocaleTimeString();
+
+                return `
+                    <div class="event-item ${eventClass}">
+                        <div class="event-info">
+                            <div class="event-type">${formatBehavior(event.behaviorType)}</div>
+                            <div class="event-details">
+                                Driver: ${event.driverId} | Vehicle: ${event.vehicleId}
+                                ${event.intent ? ` | Intent: ${event.intent}` : ''}
+                            </div>
+                        </div>
+                        <div class="event-meta">
+                            <div class="event-risk ${riskClass}">${(event.riskScore * 100).toFixed(0)}%</div>
+                            <div class="event-time">${time}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateTopDrivers(drivers) {
+            const container = document.getElementById('driver-list');
+
+            if (!drivers || drivers.length === 0) {
+                container.innerHTML = '<div class="empty-state">No driver data yet...</div>';
+                return;
+            }
+
+            container.innerHTML = drivers.map(driver => {
+                const riskClass = getRiskClass(driver.averageRiskScore);
+                return `
+                    <div class="driver-item">
+                        <div class="driver-id">${driver.driverId}</div>
+                        <div class="driver-stats">
+                            <span>Events: ${driver.eventCount}</span>
+                            <span>Behaviors: ${driver.behaviorCount}</span>
+                            <span class="${riskClass}">Risk: ${(driver.averageRiskScore * 100).toFixed(1)}%</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getEventClass(behavior) {
+            if (behavior?.includes('ACCIDENT')) return 'accident';
+            if (behavior?.includes('HARSH_BRAKING')) return 'harsh-braking';
+            if (behavior?.includes('SPEEDING')) return 'speeding';
+            if (behavior?.includes('CORNERING')) return 'cornering';
+            return '';
+        }
+
+        function getRiskClass(score) {
+            if (score >= 0.7) return 'risk-high';
+            if (score >= 0.4) return 'risk-medium';
+            return 'risk-low';
+        }
+
+        function formatBehavior(behavior) {
+            if (!behavior) return 'Unknown';
+            return behavior.replace(/_/g, ' ').toLowerCase()
+                .replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function formatUptime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+
+            if (hours > 0) return `${hours}h ${minutes % 60}m`;
+            if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+            return `${seconds}s`;
+        }
+
+        // Start connection
+        connect();
+    </script>
+</body>
+</html>

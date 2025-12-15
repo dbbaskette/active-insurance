@@ -10,6 +10,11 @@ applications:
       JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
       JAVA_OPTS: '-Djava.security.egd=file:///dev/urandom'
       SPRING_PROFILES_ACTIVE: cloud
+      # OpenAI API Key - use vars-file to inject
+      SPRING_AI_OPENAI_API_KEY: ((spring.ai.openai.api-key))
+      # Detection thresholds (optional overrides)
+      SENSE_DETECTION_ACCIDENT_G_FORCE_THRESHOLD: ((sense.detection.accident.g-force-threshold))
+      SENSE_AI_INTENT_CLASSIFICATION_ENABLED: ((sense.ai.intent-classification.enabled))
     services:
       - rabbitmq
     health-check-type: http

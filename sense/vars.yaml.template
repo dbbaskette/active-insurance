@@ -1,0 +1,43 @@
+# Sense Component - Configuration Variables Template
+# Copy this file to vars.yaml and fill in your values
+# DO NOT commit vars.yaml to version control!
+
+# Spring AI - OpenAI Configuration
+spring:
+  ai:
+    openai:
+      api-key: "your-openai-api-key-here"
+      chat:
+        options:
+          model: "gpt-4o-mini"
+          temperature: 0.3
+
+# RabbitMQ Configuration
+  rabbitmq:
+    host: "localhost"
+    port: 5672
+    username: "guest"
+    password: "guest"
+
+# Sense Detection Thresholds
+sense:
+  detection:
+    accident:
+      g-force-threshold: 5.0
+    harsh-braking:
+      g-force-threshold: 0.4
+    speeding:
+      tolerance-mph: 5
+    cornering:
+      lateral-g-threshold: 0.3
+  ai:
+    intent-classification:
+      enabled: true
+      g-force-threshold: 0.5
+      speed-excess-threshold: 15
+
+# Cloud Foundry specific (used when deploying to CF)
+cf:
+  api: "https://api.your-cf-foundation.com"
+  org: "insurance-megacorp"
+  space: "development"

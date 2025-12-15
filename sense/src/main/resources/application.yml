@@ -2,6 +2,10 @@ spring:
   application:
     name: sense-processor
 
+  # Import external configuration (vars.yaml for local development)
+  config:
+    import: optional:file:./vars.yaml
+
   # Jackson JSON configuration
   jackson:
     serialization:
@@ -9,45 +13,61 @@ spring:
     deserialization:
       fail-on-unknown-properties: false
 
-  # Spring Cloud Stream configuration
-  cloud:
-    stream:
-      function:
-        definition: sense;routeOutput
+  # RabbitMQ defaults (overridden by vars.yaml or CF service binding)
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
+  # Spring Cloud Stream configuration (pattern matches imc-telemetry-processor)
+  cloud:
+    function:
+      definition: sense
+    stream:
       bindings:
-        # Input: Telemetry from generator
+        # Input: Telemetry from imc-telematics-gen (telematics_exchange)
         sense-in-0:
-          destination: flattened_telemetry_exchange
-          group: sense-processor
+          destination: ${TELEMETRY_INPUT_EXCHANGE:telematics_exchange}
+          group: ${TELEMETRY_INPUT_GROUP:sense-processor}
           consumer:
             concurrency: 3
 
         # Output 0: Vehicle events -> JDBC consumer -> Greenplum (for ML)
         sense-out-0:
-          destination: vehicle_events
-          producer:
-            partition-count: 3
+          destination: ${VEHICLE_EVENTS_OUTPUT_EXCHANGE:vehicle_events}
+          content-type: application/json
 
         # Output 1: Behavior context -> Coach Agent
         sense-out-1:
-          destination: behavior_context_exchange
-          producer:
-            partition-count: 3
+          destination: ${BEHAVIOR_CONTEXT_OUTPUT_EXCHANGE:behavior_context_exchange}
+          content-type: application/json
 
       rabbit:
         bindings:
           sense-in-0:
             consumer:
-              exchange-type: fanout
-              bind-queue: true
+              exchangeType: ${TELEMETRY_INPUT_EXCHANGE_TYPE:fanout}
+              auto-bind-dlq: true
               durable-subscription: true
+              max-attempts: 3
           sense-out-0:
             producer:
-              exchange-type: topic
+              exchangeType: topic
+              requiredGroups: ${VEHICLE_EVENTS_OUTPUT_GROUP:vehicle-events-group}
           sense-out-1:
             producer:
-              exchange-type: topic
+              exchangeType: topic
+              requiredGroups: ${BEHAVIOR_CONTEXT_OUTPUT_GROUP:behavior-context-group}
+
+# Spring AI Configuration (values from vars.yaml or environment)
+spring.ai:
+  openai:
+    api-key: ${spring.ai.openai.api-key:}
+    chat:
+      options:
+        model: ${spring.ai.openai.chat.options.model:gpt-5-nano}
+        temperature: ${spring.ai.openai.chat.options.temperature:1}
 
 # Sense component detection thresholds
 sense:
@@ -64,6 +84,19 @@ sense:
       lateral-g-threshold: 0.3
     drift:
       yaw-rate-threshold: 15
+
+  # AI-powered intent classification settings
+  ai:
+    intent-classification:
+      # Enable/disable LLM-based intent classification
+      enabled: ${SENSE_AI_INTENT_CLASSIFICATION_ENABLED:true}
+      # Only invoke AI for behaviors above these thresholds (be selective!)
+      # Harsh braking: detected at 0.4g, but only AI classify if > 1.5g (high severity)
+      g-force-threshold: 1.5
+      # Speed excess: only AI classify if > 25 mph over limit (significant)
+      speed-excess-threshold: 25
+      # Cornering: detected at 0.3g, only AI classify if lateral g > 0.6
+      lateral-g-threshold: 0.6
 
   window:
     time-duration: 30s
@@ -97,7 +130,7 @@ logging:
 
 # Server configuration
 server:
-  port: 8080
+  port: 8081
 
 ---
 # Cloud profile for Cloud Foundry deployment

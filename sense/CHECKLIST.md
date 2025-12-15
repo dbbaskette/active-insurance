@@ -102,25 +102,26 @@
 - [ ] Configurable thresholds
 
 ### 3.4 Intent Classification
-- [ ] Evasive vs aggressive distinction
-- [ ] Context-aware classification
-- [ ] Confidence scoring
-- [ ] Explanation generation
+- [x] Evasive vs aggressive distinction
+- [x] Context-aware classification
+- [x] Confidence scoring
+- [x] Explanation generation
 
-### 3.5 Spring AI 1.1.2 + Spring AI Agents
-- [ ] Spring AI 1.1.2 dependencies
-- [ ] Spring AI Agents dependencies
-- [ ] `BehaviorClassificationAgent` (AgentClient API)
-- [ ] Goals for intent classification
-- [ ] Detection algorithms as Tools
-- [ ] Context management for telemetry windows
-- [ ] Judges for classification verification
-- [ ] Prompt templates
-- [ ] LLM intent disambiguation
-- [ ] Embedding anomaly detection
-- [ ] Feedback loop
+### 3.5 Spring AI 1.1.2 + LLM Integration
+- [x] Spring AI 1.1.2 dependencies (OpenAI)
+- [x] `IntentClassifier` service
+- [x] `IntentClassificationResult` model
+- [x] `DrivingIntent` enum (EVASIVE, AGGRESSIVE, NORMAL, DISTRACTED, UNKNOWN)
+- [x] Hybrid approach: rule-based fast path + LLM for ambiguous events
+- [x] Prompt templates for intent classification
+- [x] LLM intent disambiguation
+- [x] Risk score adjustment based on intent
+- [x] Configurable thresholds for AI invocation
+- [ ] Spring AI Agents integration (future)
+- [ ] Embedding anomaly detection (future)
+- [ ] Feedback loop (future)
 
-**Phase 3 Status:** 🟡 In Progress (Rule-based detection complete, AI integration pending)
+**Phase 3 Status:** ✅ Complete (Rule-based + AI intent classification)
 
 ---
 
@@ -277,7 +278,7 @@
 |-------|-------------|--------|
 | 1 | Foundation & Infrastructure | ✅ Complete |
 | 2 | Temporal Window Management | ⬜ Not Started |
-| 3 | Micro-Behavior Detection | 🟡 Rule-based done, AI pending |
+| 3 | Micro-Behavior Detection + AI Intent Classification | ✅ Complete |
 | 4 | Context Builder & Output | 🟡 Core done, enhancements pending |
 | 5 | Observability | 🟡 Basic metrics done |
 | 6 | Testing | 🟡 19 tests passing |
@@ -285,7 +286,7 @@
 
 **Legend:** ⬜ Not Started | 🟡 In Progress | ✅ Complete
 
-**Last Updated:** 2024-12-15
+**Last Updated:** 2025-12-15
 
 ---
 

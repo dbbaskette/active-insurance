@@ -8,11 +8,11 @@ import com.insurancemegacorp.sense.processor.TelemetryProcessor;
 import com.insurancemegacorp.sense.processor.TelemetryProcessor.ProcessorOutput;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
-
-import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,15 +24,21 @@ import static org.junit.jupiter.api.Assertions.*;
     "sense.detection.accident.g-force-threshold=5.0",
     "sense.detection.harsh-braking.g-force-threshold=0.4",
     "sense.detection.speeding.tolerance-mph=5",
-    "sense.detection.cornering.lateral-g-threshold=0.3"
+    "sense.detection.cornering.lateral-g-threshold=0.3",
+    "sense.ai.intent-classification.enabled=false",
+    "spring.ai.openai.api-key=test-key-not-used"
+})
+@Import(TestAIConfiguration.class)
+@EnableAutoConfiguration(exclude = {
+    org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration.class
 })
 class TelemetryProcessorTest {
 
     @Autowired
     private TelemetryProcessor telemetryProcessor;
 
-    private Function<Message<TelemetryEvent>, ProcessorOutput> getProcessor() {
-        return telemetryProcessor.sense();
+    private ProcessorOutput process(Message<TelemetryEvent> message) {
+        return telemetryProcessor.process(message);
     }
 
     @Test
@@ -43,7 +49,7 @@ class TelemetryProcessorTest {
         Message<TelemetryEvent> message = MessageBuilder.withPayload(event).build();
 
         // When: Process the event
-        ProcessorOutput output = getProcessor().apply(message);
+        ProcessorOutput output = process(message);
 
         // Then: Should detect smooth driving
         assertNotNull(output);
@@ -64,7 +70,7 @@ class TelemetryProcessorTest {
         Message<TelemetryEvent> message = MessageBuilder.withPayload(event).build();
 
         // When: Process the event
-        ProcessorOutput output = getProcessor().apply(message);
+        ProcessorOutput output = process(message);
 
         // Then: Should detect harsh braking and emit vehicle event
         assertNotNull(output);
@@ -92,7 +98,7 @@ class TelemetryProcessorTest {
         Message<TelemetryEvent> message = MessageBuilder.withPayload(event).build();
 
         // When: Process the event
-        ProcessorOutput output = getProcessor().apply(message);
+        ProcessorOutput output = process(message);
 
         // Then: Should detect speeding in behavior context
         // Note: Speeding doesn't emit vehicle event by design - only POTENTIAL_ACCIDENT,
@@ -120,7 +126,7 @@ class TelemetryProcessorTest {
         Message<TelemetryEvent> message = MessageBuilder.withPayload(event).build();
 
         // When: Process the event
-        ProcessorOutput output = getProcessor().apply(message);
+        ProcessorOutput output = process(message);
 
         // Then: Should detect aggressive cornering
         assertNotNull(output);
@@ -140,7 +146,7 @@ class TelemetryProcessorTest {
         Message<TelemetryEvent> message = MessageBuilder.withPayload(event).build();
 
         // When: Process the event
-        ProcessorOutput output = getProcessor().apply(message);
+        ProcessorOutput output = process(message);
 
         // Then: Should detect potential accident and emit critical event
         assertNotNull(output);
@@ -168,7 +174,7 @@ class TelemetryProcessorTest {
         Message<TelemetryEvent> message = MessageBuilder.withPayload(event).build();
 
         // When: Process the event
-        ProcessorOutput output = getProcessor().apply(message);
+        ProcessorOutput output = process(message);
 
         // Then: Risk score should be high
         BehaviorContext context = output.behaviorContext();
@@ -183,7 +189,7 @@ class TelemetryProcessorTest {
         Message<TelemetryEvent> message = MessageBuilder.withPayload(event).build();
 
         // When: Process the event
-        ProcessorOutput output = getProcessor().apply(message);
+        ProcessorOutput output = process(message);
 
         // Then: Risk score should be low
         BehaviorContext context = output.behaviorContext();
@@ -203,7 +209,7 @@ class TelemetryProcessorTest {
 
         for (TelemetryEvent event : events) {
             Message<TelemetryEvent> message = MessageBuilder.withPayload(event).build();
-            ProcessorOutput output = getProcessor().apply(message);
+            ProcessorOutput output = process(message);
 
             assertNotNull(output.behaviorContext(),
                     "BehaviorContext should always be emitted");
@@ -220,22 +226,22 @@ class TelemetryProcessorTest {
     void testVehicleEventOnlyForSignificantBehaviors() {
         // Normal driving - no vehicle event
         TelemetryEvent normalEvent = TestDataGenerator.normalDrivingEvent();
-        ProcessorOutput normalOutput = getProcessor().apply(MessageBuilder.withPayload(normalEvent).build());
+        ProcessorOutput normalOutput = process(MessageBuilder.withPayload(normalEvent).build());
         assertNull(normalOutput.vehicleEvent(), "Normal driving should not emit vehicle event");
 
         // Harsh braking - should emit vehicle event (records to DB)
         TelemetryEvent brakingEvent = TestDataGenerator.harshBrakingEvent();
-        ProcessorOutput brakingOutput = getProcessor().apply(MessageBuilder.withPayload(brakingEvent).build());
+        ProcessorOutput brakingOutput = process(MessageBuilder.withPayload(brakingEvent).build());
         assertNotNull(brakingOutput.vehicleEvent(), "Harsh braking should emit vehicle event");
 
         // Speeding - no vehicle event by design (only goes to Coach, not Greenplum)
         TelemetryEvent speedingEvent = TestDataGenerator.speedingEvent();
-        ProcessorOutput speedingOutput = getProcessor().apply(MessageBuilder.withPayload(speedingEvent).build());
+        ProcessorOutput speedingOutput = process(MessageBuilder.withPayload(speedingEvent).build());
         assertNull(speedingOutput.vehicleEvent(), "Speeding should not emit vehicle event (by design)");
 
         // Potential accident - should emit vehicle event (records to DB)
         TelemetryEvent accidentEvent = TestDataGenerator.potentialAccidentEvent();
-        ProcessorOutput accidentOutput = getProcessor().apply(MessageBuilder.withPayload(accidentEvent).build());
+        ProcessorOutput accidentOutput = process(MessageBuilder.withPayload(accidentEvent).build());
         assertNotNull(accidentOutput.vehicleEvent(), "Potential accident should emit vehicle event");
     }
 
@@ -243,13 +249,13 @@ class TelemetryProcessorTest {
     void testCoachingTriggerLogic() {
         // Potential accident should trigger immediate coaching
         TelemetryEvent accidentEvent = TestDataGenerator.potentialAccidentEvent();
-        ProcessorOutput accidentOutput = getProcessor().apply(MessageBuilder.withPayload(accidentEvent).build());
+        ProcessorOutput accidentOutput = process(MessageBuilder.withPayload(accidentEvent).build());
         assertTrue(accidentOutput.behaviorContext().coachingTrigger().shouldTrigger(),
                 "Potential accident should trigger coaching");
 
         // Normal driving may or may not trigger coaching (depends on implementation)
         TelemetryEvent normalEvent = TestDataGenerator.normalDrivingEvent();
-        ProcessorOutput normalOutput = getProcessor().apply(MessageBuilder.withPayload(normalEvent).build());
+        ProcessorOutput normalOutput = process(MessageBuilder.withPayload(normalEvent).build());
         // Smooth driving doesn't require immediate coaching
         assertNotNull(normalOutput.behaviorContext().coachingTrigger());
     }
