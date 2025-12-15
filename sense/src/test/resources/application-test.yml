@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: sense-processor
+
+  cloud:
+    stream:
+      function:
+        definition: sense
+
+      bindings:
+        sense-in-0:
+          destination: flattened_telemetry_exchange
+          group: sense-processor
+          consumer:
+            concurrency: 1
+
+        sense-out-0:
+          destination: vehicle_events
+
+        sense-out-1:
+          destination: behavior_context_exchange
+
+      rabbit:
+        bindings:
+          sense-in-0:
+            consumer:
+              exchange-type: fanout
+              bind-queue: true
+              durable-subscription: false
+          sense-out-0:
+            producer:
+              exchange-type: topic
+          sense-out-1:
+            producer:
+              exchange-type: topic
+
+sense:
+  detection:
+    accident:
+      g-force-threshold: 5.0
+    harsh-braking:
+      g-force-threshold: 0.4
+    speeding:
+      tolerance-mph: 5
+    cornering:
+      lateral-g-threshold: 0.3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  level:
+    com.insurancemegacorp.sense: DEBUG
+    org.springframework.cloud.stream: DEBUG
+    org.springframework.amqp: DEBUG

@@ -1,0 +1,111 @@
+spring:
+  application:
+    name: sense-processor
+
+  # Jackson JSON configuration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+  # Spring Cloud Stream configuration
+  cloud:
+    stream:
+      function:
+        definition: sense;routeOutput
+
+      bindings:
+        # Input: Telemetry from generator
+        sense-in-0:
+          destination: flattened_telemetry_exchange
+          group: sense-processor
+          consumer:
+            concurrency: 3
+
+        # Output 0: Vehicle events -> JDBC consumer -> Greenplum (for ML)
+        sense-out-0:
+          destination: vehicle_events
+          producer:
+            partition-count: 3
+
+        # Output 1: Behavior context -> Coach Agent
+        sense-out-1:
+          destination: behavior_context_exchange
+          producer:
+            partition-count: 3
+
+      rabbit:
+        bindings:
+          sense-in-0:
+            consumer:
+              exchange-type: fanout
+              bind-queue: true
+              durable-subscription: true
+          sense-out-0:
+            producer:
+              exchange-type: topic
+          sense-out-1:
+            producer:
+              exchange-type: topic
+
+# Sense component detection thresholds
+sense:
+  detection:
+    accident:
+      g-force-threshold: 5.0
+    harsh-braking:
+      g-force-threshold: 0.4
+      duration-ms: 500
+    speeding:
+      tolerance-mph: 5
+      sustained-seconds: 10
+    cornering:
+      lateral-g-threshold: 0.3
+    drift:
+      yaw-rate-threshold: 15
+
+  window:
+    time-duration: 30s
+    event-count: 50
+    overlap-ratio: 0.5
+
+  session:
+    timeout: 5m
+    max-active: 10000
+
+# Actuator endpoints for observability
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# Logging
+logging:
+  level:
+    com.insurancemegacorp.sense: INFO
+    org.springframework.cloud.stream: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Server configuration
+server:
+  port: 8080
+
+---
+# Cloud profile for Cloud Foundry deployment
+spring:
+  config:
+    activate:
+      on-profile: cloud
+
+logging:
+  level:
+    com.insurancemegacorp.sense: INFO
