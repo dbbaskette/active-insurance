@@ -18,7 +18,6 @@ public class DashboardStats {
     private final AtomicLong totalEventsProcessed = new AtomicLong(0);
     private final AtomicLong totalBehaviorsDetected = new AtomicLong(0);
     private final AtomicLong totalVehicleEventsEmitted = new AtomicLong(0);
-    private final AtomicLong totalIntentsClassified = new AtomicLong(0);
     private final AtomicLong potentialAccidents = new AtomicLong(0);
     private final AtomicLong harshBrakingEvents = new AtomicLong(0);
     private final AtomicLong speedingEvents = new AtomicLong(0);
@@ -47,10 +46,6 @@ public class DashboardStats {
 
     public void incrementVehicleEventsEmitted() {
         totalVehicleEventsEmitted.incrementAndGet();
-    }
-
-    public void incrementIntentsClassified() {
-        totalIntentsClassified.incrementAndGet();
     }
 
     public void recordBehavior(MicroBehavior behavior) {
@@ -96,7 +91,6 @@ public class DashboardStats {
                 totalEventsProcessed.get(),
                 totalBehaviorsDetected.get(),
                 totalVehicleEventsEmitted.get(),
-                totalIntentsClassified.get(),
                 potentialAccidents.get(),
                 harshBrakingEvents.get(),
                 speedingEvents.get(),
@@ -121,7 +115,6 @@ public class DashboardStats {
         totalEventsProcessed.set(0);
         totalBehaviorsDetected.set(0);
         totalVehicleEventsEmitted.set(0);
-        totalIntentsClassified.set(0);
         potentialAccidents.set(0);
         harshBrakingEvents.set(0);
         speedingEvents.set(0);
@@ -136,7 +129,6 @@ public class DashboardStats {
             long eventsProcessed,
             long behaviorsDetected,
             long vehicleEventsEmitted,
-            long intentsClassified,
             long potentialAccidents,
             long harshBrakingEvents,
             long speedingEvents,
@@ -193,7 +185,6 @@ public class DashboardStats {
             String vehicleId,
             String behaviorType,
             String severity,
-            double riskScore,
-            String intent
+            double riskScore
     ) {}
 }

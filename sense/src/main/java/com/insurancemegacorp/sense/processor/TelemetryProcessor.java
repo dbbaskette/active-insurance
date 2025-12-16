@@ -1,10 +1,6 @@
 package com.insurancemegacorp.sense.processor;
 
-import com.insurancemegacorp.sense.ai.DrivingIntent;
-import com.insurancemegacorp.sense.ai.IntentClassificationResult;
-import com.insurancemegacorp.sense.ai.IntentClassifier;
 import com.insurancemegacorp.sense.dashboard.DashboardStats;
-import com.insurancemegacorp.sense.dashboard.DashboardWebSocketHandler;
 import com.insurancemegacorp.sense.model.*;
 import com.insurancemegacorp.sense.model.BehaviorContext.*;
 import io.micrometer.core.instrument.Counter;
@@ -12,7 +8,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.context.annotation.Bean;
@@ -25,16 +20,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
  * Main telemetry processor with dual output.
  *
- * <p>Input: TelemetryEvent from flattened_telemetry_exchange
+ * <p>Input: TelemetryEvent from telematics_exchange
  * <p>Output 0: VehicleEvent to vehicle_events exchange (for Greenplum ML)
  * <p>Output 1: BehaviorContext to behavior_context_exchange (for Coach Agent)
+ *
+ * <p>Uses rule-based behavior detection. No AI/LLM dependencies.
  */
 @Configuration
 public class TelemetryProcessor {
@@ -54,9 +50,6 @@ public class TelemetryProcessor {
     @Value("${sense.detection.cornering.lateral-g-threshold:0.3}")
     private double corneringThreshold;
 
-    // AI Intent Classifier
-    private final IntentClassifier intentClassifier;
-
     // Dashboard stats
     private final DashboardStats dashboardStats;
 
@@ -69,14 +62,14 @@ public class TelemetryProcessor {
     private final Counter behaviorsDetected;
     private final Counter vehicleEventsEmitted;
     private final Counter behaviorContextsEmitted;
-    private final Counter intentsClassified;
     private final Timer processingTimer;
 
-    public TelemetryProcessor(MeterRegistry meterRegistry, IntentClassifier intentClassifier,
-                              DashboardStats dashboardStats, StreamBridge streamBridge) {
-        this.intentClassifier = intentClassifier;
+    public TelemetryProcessor(MeterRegistry meterRegistry,
+                              DashboardStats dashboardStats,
+                              StreamBridge streamBridge) {
         this.dashboardStats = dashboardStats;
         this.streamBridge = streamBridge;
+
         this.eventsReceived = Counter.builder("sense_events_received_total")
                 .description("Total telemetry events received")
                 .register(meterRegistry);
@@ -95,10 +88,6 @@ public class TelemetryProcessor {
 
         this.behaviorContextsEmitted = Counter.builder("sense_behavior_contexts_emitted_total")
                 .description("Behavior contexts emitted to Coach Agent")
-                .register(meterRegistry);
-
-        this.intentsClassified = Counter.builder("sense_intents_classified_total")
-                .description("Total behaviors classified by AI intent classifier")
                 .register(meterRegistry);
 
         this.processingTimer = Timer.builder("sense_processing_duration_seconds")
@@ -148,10 +137,10 @@ public class TelemetryProcessor {
             TelemetryEvent event = message.getPayload();
             long startTime = System.currentTimeMillis();
 
-            log.info("Processing telemetry event for driver: {}, vehicle: {}",
+            log.debug("Processing telemetry event for driver: {}, vehicle: {}",
                     event.driverId(), event.vehicleId());
 
-            // Detect behaviors
+            // Detect behaviors using rules
             List<DetectedBehavior> detectedBehaviors = detectBehaviors(event);
             behaviorsDetected.increment(detectedBehaviors.size());
             dashboardStats.incrementBehaviorsDetected(detectedBehaviors.size());
@@ -161,11 +150,8 @@ public class TelemetryProcessor {
                 dashboardStats.recordBehavior(behavior.type());
             }
 
-            // Classify intent for significant behaviors using AI
-            List<IntentClassificationResult> intentResults = classifyIntents(event, detectedBehaviors);
-
-            // Calculate risk score (adjusted by intent classification)
-            double riskScore = calculateRiskScore(detectedBehaviors, intentResults);
+            // Calculate risk score from behaviors
+            double riskScore = calculateRiskScore(detectedBehaviors);
             RiskLevel riskLevel = RiskLevel.fromScore(riskScore);
 
             // Update driver stats for dashboard
@@ -190,17 +176,14 @@ public class TelemetryProcessor {
                     log.info("Emitting vehicle event: {} for driver: {}",
                             behavior.type(), event.driverId());
 
-                    // Add to recent events for dashboard (only significant events)
-                    String intentStr = intentResults.isEmpty() ? null
-                            : intentResults.get(0).intent().name();
+                    // Add to recent events for dashboard
                     dashboardStats.addRecentEvent(new DashboardStats.RecentEvent(
                             Instant.now(),
                             event.driverId(),
                             event.vehicleId(),
                             behavior.type().name(),
                             behavior.severity(),
-                            riskScore,
-                            intentStr
+                            riskScore
                     ));
 
                     break; // One event per telemetry record
@@ -210,7 +193,7 @@ public class TelemetryProcessor {
             // Build behavior context for Coach Agent
             long processingTimeMs = System.currentTimeMillis() - startTime;
             BehaviorContext behaviorContext = buildBehaviorContext(
-                    event, detectedBehaviors, intentResults, riskScore, riskLevel, processingTimeMs);
+                    event, detectedBehaviors, riskScore, riskLevel, processingTimeMs);
             behaviorContextsEmitted.increment();
 
             eventsProcessed.increment();
@@ -221,37 +204,7 @@ public class TelemetryProcessor {
     }
 
     /**
-     * Classify intents for detected behaviors using AI when appropriate.
-     * Only significant/ambiguous behaviors are sent to the LLM.
-     */
-    private List<IntentClassificationResult> classifyIntents(
-            TelemetryEvent event,
-            List<DetectedBehavior> behaviors) {
-
-        List<IntentClassificationResult> results = new ArrayList<>();
-
-        for (DetectedBehavior behavior : behaviors) {
-            // Skip smooth driving - no classification needed
-            if (behavior.type() == MicroBehavior.SMOOTH_DRIVING) {
-                continue;
-            }
-
-            IntentClassificationResult result = intentClassifier.classify(event, behavior.type());
-            results.add(result);
-
-            if (result.aiClassified()) {
-                intentsClassified.increment();
-                dashboardStats.incrementIntentsClassified();
-                log.info("AI classified {} as {} (confidence: {}) for driver: {}",
-                        behavior.type(), result.intent(), String.format("%.2f", result.confidence()), event.driverId());
-            }
-        }
-
-        return results;
-    }
-
-    /**
-     * Detect micro-behaviors from telemetry event.
+     * Detect micro-behaviors from telemetry event using rules.
      */
     private List<DetectedBehavior> detectBehaviors(TelemetryEvent event) {
         List<DetectedBehavior> behaviors = new ArrayList<>();
@@ -310,23 +263,11 @@ public class TelemetryProcessor {
     }
 
     /**
-     * Calculate risk score from detected behaviors, adjusted by intent classification.
-     *
-     * <p>If AI classifies a behavior as EVASIVE (defensive), the risk contribution is reduced.
-     * If classified as AGGRESSIVE or DISTRACTED, the risk contribution is increased.
+     * Calculate risk score from detected behaviors.
      */
-    private double calculateRiskScore(
-            List<DetectedBehavior> behaviors,
-            List<IntentClassificationResult> intentResults) {
-
+    private double calculateRiskScore(List<DetectedBehavior> behaviors) {
         if (behaviors.isEmpty()) {
             return 0.0;
-        }
-
-        // Build a lookup map for intent results by behavior type
-        Map<MicroBehavior, IntentClassificationResult> intentMap = new HashMap<>();
-        for (IntentClassificationResult result : intentResults) {
-            intentMap.put(result.originalBehavior(), result);
         }
 
         double totalWeight = 0.0;
@@ -336,41 +277,14 @@ public class TelemetryProcessor {
             double weight = getBehaviorWeight(behavior.type());
             double score = getSeverityScore(behavior.severity());
 
-            // Apply intent adjustment if available
-            IntentClassificationResult intent = intentMap.get(behavior.type());
-            double intentMultiplier = getIntentMultiplier(intent);
-
             totalWeight += weight;
-            weightedScore += weight * score * behavior.confidence() * intentMultiplier;
+            weightedScore += weight * score * behavior.confidence();
         }
 
         double rawScore = totalWeight > 0 ? weightedScore / totalWeight : 0.0;
 
         // Clamp to valid range [0, 1]
         return Math.max(0.0, Math.min(1.0, rawScore));
-    }
-
-    /**
-     * Get risk multiplier based on intent classification.
-     * EVASIVE reduces risk (driver was defending), AGGRESSIVE/DISTRACTED increases it.
-     */
-    private double getIntentMultiplier(IntentClassificationResult intent) {
-        if (intent == null) {
-            return 1.0; // No adjustment
-        }
-
-        // Only apply adjustments for high-confidence classifications
-        if (!intent.isHighConfidence()) {
-            return 1.0;
-        }
-
-        return switch (intent.intent()) {
-            case EVASIVE -> 0.5;     // Reduce risk - defensive driving
-            case AGGRESSIVE -> 1.3;  // Increase risk - risky behavior
-            case DISTRACTED -> 1.2;  // Increase risk - attention issue
-            case NORMAL -> 1.0;      // No adjustment
-            case UNKNOWN -> 1.0;     // No adjustment
-        };
     }
 
     private double getBehaviorWeight(MicroBehavior behavior) {
@@ -401,32 +315,18 @@ public class TelemetryProcessor {
     private BehaviorContext buildBehaviorContext(
             TelemetryEvent event,
             List<DetectedBehavior> behaviors,
-            List<IntentClassificationResult> intentResults,
             double riskScore,
             RiskLevel riskLevel,
             long processingTimeMs) {
 
-        // Build intent lookup map
-        Map<MicroBehavior, IntentClassificationResult> intentMap = new HashMap<>();
-        for (IntentClassificationResult result : intentResults) {
-            intentMap.put(result.originalBehavior(), result);
-        }
-
-        // Build risk assessment with intent information
+        // Build risk assessment
         List<RiskAssessment.RiskFactor> factors = behaviors.stream()
                 .filter(b -> b.type() != MicroBehavior.SMOOTH_DRIVING)
-                .map(b -> {
-                    IntentClassificationResult intent = intentMap.get(b.type());
-                    String factorName = b.type().name();
-                    if (intent != null && intent.aiClassified()) {
-                        factorName = factorName + " (" + intent.intent().name() + ")";
-                    }
-                    return new RiskAssessment.RiskFactor(
-                            factorName,
-                            getBehaviorWeight(b.type()),
-                            getSeverityScore(b.severity()) * getIntentMultiplier(intent)
-                    );
-                })
+                .map(b -> new RiskAssessment.RiskFactor(
+                        b.type().name(),
+                        getBehaviorWeight(b.type()),
+                        getSeverityScore(b.severity())
+                ))
                 .toList();
 
         RiskAssessment riskAssessment = new RiskAssessment(

@@ -60,15 +60,6 @@ spring:
               exchangeType: topic
               requiredGroups: ${BEHAVIOR_CONTEXT_OUTPUT_GROUP:behavior-context-group}
 
-# Spring AI Configuration (values from vars.yaml or environment)
-spring.ai:
-  openai:
-    api-key: ${spring.ai.openai.api-key:}
-    chat:
-      options:
-        model: ${spring.ai.openai.chat.options.model:gpt-5-nano}
-        temperature: ${spring.ai.openai.chat.options.temperature:1}
-
 # Sense component detection thresholds
 sense:
   detection:
@@ -84,19 +75,6 @@ sense:
       lateral-g-threshold: 0.3
     drift:
       yaw-rate-threshold: 15
-
-  # AI-powered intent classification settings
-  ai:
-    intent-classification:
-      # Enable/disable LLM-based intent classification
-      enabled: ${SENSE_AI_INTENT_CLASSIFICATION_ENABLED:true}
-      # Only invoke AI for behaviors above these thresholds (be selective!)
-      # Harsh braking: detected at 0.4g, but only AI classify if > 1.5g (high severity)
-      g-force-threshold: 1.5
-      # Speed excess: only AI classify if > 25 mph over limit (significant)
-      speed-excess-threshold: 25
-      # Cornering: detected at 0.3g, only AI classify if lateral g > 0.6
-      lateral-g-threshold: 0.6
 
   window:
     time-duration: 30s

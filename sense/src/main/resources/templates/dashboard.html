@@ -318,10 +318,6 @@
                 <div class="stat-label">Active Drivers</div>
                 <div class="stat-value" id="active-drivers">0</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">AI Classifications</div>
-                <div class="stat-value" id="ai-classifications">0</div>
-            </div>
             <div class="stat-card alert">
                 <div class="stat-label">Potential Accidents</div>
                 <div class="stat-value danger" id="accidents">0</div>
@@ -416,7 +412,6 @@
             document.getElementById('total-events').textContent = formatNumber(stats.eventsReceived);
             document.getElementById('behaviors-detected').textContent = formatNumber(stats.behaviorsDetected);
             document.getElementById('active-drivers').textContent = stats.activeDrivers;
-            document.getElementById('ai-classifications').textContent = formatNumber(stats.intentsClassified);
             document.getElementById('accidents').textContent = stats.potentialAccidents;
 
             // Update behavior bars
@@ -454,7 +449,6 @@
                             <div class="event-type">${formatBehavior(event.behaviorType)}</div>
                             <div class="event-details">
                                 Driver: ${event.driverId} | Vehicle: ${event.vehicleId}
-                                ${event.intent ? ` | Intent: ${event.intent}` : ''}
                             </div>
                         </div>
                         <div class="event-meta">

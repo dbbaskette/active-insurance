@@ -1,10 +1,10 @@
 # Sense - Telemetry Monitor Agent
 
-The **Sense** module is the "eyes and ears" of the Active Insurance platform. It ingests high-velocity telemetry streams from vehicles and identifies micro-behaviors in real-time.
+The **Sense** module is the "eyes and ears" of the Active Insurance platform. It ingests high-velocity telemetry streams from vehicles and identifies micro-behaviors in real-time using **pure rule-based detection**.
 
-## Status: Phase 1 Complete ✓
+## Status: Complete ✓
 
-Rule-based behavior detection with dual output routing.
+Rule-based behavior detection with dual output routing and real-time dashboard.
 
 ## Overview
 
@@ -16,7 +16,9 @@ Sense replaces the legacy `imc-telemetry-processor` which only performed simple 
 - **10 behavior types detected** - From smooth driving to potential accidents
 - **Dual output routing** - Vehicle events to Greenplum, behavior contexts to Coach Agent
 - **Real-time risk scoring** - Weighted factors with confidence levels
+- **Real-time WebSocket dashboard** - Monitor events, behaviors, and driver risk at `/dashboard`
 - **Prometheus metrics** - Full observability for operations
+- **No AI/LLM dependencies** - Pure deterministic rule-based processing
 
 ## Architecture
 
@@ -234,11 +236,38 @@ sense/
             └── SenseProcessorIntegrationTest.java
 ```
 
+## Dashboard
+
+Access the real-time monitoring dashboard at `http://localhost:8081/dashboard`
+
+Features:
+- Events per second throughput
+- Total events and behaviors detected
+- Active driver count
+- Potential accidents counter
+- Behavior breakdown (harsh braking, speeding, cornering)
+- Recent events feed with risk scores
+- Top risk drivers leaderboard
+
+The dashboard uses WebSocket for live updates without polling.
+
+## Design Philosophy
+
+Sense uses **pure rule-based detection** rather than AI/ML for behavior classification. This approach was chosen because:
+
+1. **Deterministic results** - Same input always produces same output
+2. **Explainable decisions** - Every classification has clear, auditable rules
+3. **No context hallucination** - Single-point telemetry lacks the context needed for AI to infer driver intent
+4. **Fast processing** - No API latency or token costs
+5. **Offline capable** - Works without external service dependencies
+
+The thresholds are configurable and based on industry standards for driving behavior analysis.
+
 ## Roadmap
 
-- [x] **Phase 1:** Rule-based behavior detection (current)
-- [ ] **Phase 2:** Windowed aggregation and session tracking
-- [ ] **Phase 3:** Spring AI integration for pattern recognition
+- [x] **Phase 1:** Rule-based behavior detection
+- [x] **Phase 2:** Real-time WebSocket dashboard
+- [ ] **Phase 3:** Windowed aggregation and session tracking
 
 ## Related Modules
 

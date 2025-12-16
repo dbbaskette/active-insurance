@@ -36,12 +36,6 @@
             <artifactId>spring-cloud-stream-binder-rabbit</artifactId>
         </dependency>
 
-        <!-- Spring AI for LLM-powered intent classification -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-model-openai</artifactId>
-        </dependency>
-
         <!-- Observability -->
         <dependency>
             <groupId>io.micrometer</groupId>

@@ -2,16 +2,10 @@ package com.insurancemegacorp.sense;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.insurancemegacorp.sense.model.BehaviorContext;
-import com.insurancemegacorp.sense.model.MicroBehavior;
 import com.insurancemegacorp.sense.model.TelemetryEvent;
-import com.insurancemegacorp.sense.model.VehicleEvent;
-import com.insurancemegacorp.sense.processor.TelemetryProcessor;
-import com.insurancemegacorp.sense.processor.TelemetryProcessor.ProcessorOutput;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.stream.binder.test.InputDestination;
 import org.springframework.cloud.stream.binder.test.OutputDestination;
@@ -39,15 +33,10 @@ import static org.junit.jupiter.api.Assertions.*;
         "spring.cloud.stream.bindings.sense-in-0.destination=telemetry-input",
         "spring.cloud.stream.bindings.sense-out-0.destination=vehicle-events-output",
         "spring.cloud.stream.bindings.sense-out-1.destination=behavior-context-output",
-        "logging.level.com.insurancemegacorp.sense=DEBUG",
-        "sense.ai.intent-classification.enabled=false",
-        "spring.ai.openai.api-key=test-key-not-used"
+        "logging.level.com.insurancemegacorp.sense=DEBUG"
     }
 )
-@Import({TestChannelBinderConfiguration.class, TestAIConfiguration.class})
-@EnableAutoConfiguration(exclude = {
-    org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration.class
-})
+@Import(TestChannelBinderConfiguration.class)
 class SenseProcessorIntegrationTest {
 
     @Autowired

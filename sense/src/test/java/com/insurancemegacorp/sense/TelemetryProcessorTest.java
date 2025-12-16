@@ -8,9 +8,7 @@ import com.insurancemegacorp.sense.processor.TelemetryProcessor;
 import com.insurancemegacorp.sense.processor.TelemetryProcessor.ProcessorOutput;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 
@@ -24,13 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
     "sense.detection.accident.g-force-threshold=5.0",
     "sense.detection.harsh-braking.g-force-threshold=0.4",
     "sense.detection.speeding.tolerance-mph=5",
-    "sense.detection.cornering.lateral-g-threshold=0.3",
-    "sense.ai.intent-classification.enabled=false",
-    "spring.ai.openai.api-key=test-key-not-used"
-})
-@Import(TestAIConfiguration.class)
-@EnableAutoConfiguration(exclude = {
-    org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration.class
+    "sense.detection.cornering.lateral-g-threshold=0.3"
 })
 class TelemetryProcessorTest {
 
